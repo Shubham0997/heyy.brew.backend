@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import { generateRecipe as generateAiRecipe } from '../services/aiService';
 import BrewRating from '../models/BrewRating';
+import SavedRecipe from '../models/SavedRecipe';
+import { AuthenticatedRequest } from '../middleware/authMiddleware';
 
 export const generateRecipe = async (req: Request, res: Response) => {
     try {
@@ -46,5 +48,53 @@ export const rateRecipe = async (req: Request, res: Response) => {
     } catch (error: any) {
         console.error('Error saving rating:', error);
         res.status(500).json({ error: error.message || 'Failed to save rating' });
+    }
+};
+
+export const saveRecipe = async (req: AuthenticatedRequest, res: Response) => {
+    try {
+        const { beanInfo, recipe, rating } = req.body;
+        const userId = req.user?.uid;
+
+        if (!userId) {
+            res.status(401).json({ error: 'Unauthorized user.' });
+            return;
+        }
+
+        if (!beanInfo || !recipe) {
+            res.status(400).json({ error: 'Please provide beanInfo and recipe.' });
+            return;
+        }
+
+        const newSavedRecipe = new SavedRecipe({
+            userId,
+            beanInfo,
+            recipe,
+            rating: typeof rating === 'number' ? rating : undefined,
+            createdAt: new Date()
+        });
+
+        const saved = await newSavedRecipe.save();
+        res.status(201).json({ id: saved._id, message: 'Recipe saved successfully' });
+    } catch (error: any) {
+        console.error('Error saving recipe:', error);
+        res.status(500).json({ error: error.message || 'Failed to save recipe' });
+    }
+};
+
+export const getSavedRecipes = async (req: AuthenticatedRequest, res: Response) => {
+    try {
+        const userId = req.user?.uid;
+
+        if (!userId) {
+            res.status(401).json({ error: 'Unauthorized user.' });
+            return;
+        }
+
+        const recipes = await SavedRecipe.find({ userId }).sort({ createdAt: -1 });
+        res.status(200).json(recipes);
+    } catch (error: any) {
+        console.error('Error fetching recipes:', error);
+        res.status(500).json({ error: error.message || 'Failed to fetch recipes' });
     }
 };
