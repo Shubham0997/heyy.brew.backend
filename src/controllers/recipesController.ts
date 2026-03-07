@@ -98,3 +98,32 @@ export const getSavedRecipes = async (req: AuthenticatedRequest, res: Response) 
         res.status(500).json({ error: error.message || 'Failed to fetch recipes' });
     }
 };
+
+export const deleteRecipe = async (req: AuthenticatedRequest, res: Response) => {
+    try {
+        const userId = req.user?.uid;
+        const recipeId = req.params.id;
+
+        if (!userId) {
+            res.status(401).json({ error: 'Unauthorized user.' });
+            return;
+        }
+
+        if (!recipeId) {
+            res.status(400).json({ error: 'Recipe ID is required.' });
+            return;
+        }
+
+        const deletedRecipe = await SavedRecipe.findOneAndDelete({ _id: recipeId, userId });
+
+        if (!deletedRecipe) {
+            res.status(404).json({ error: 'Recipe not found or unauthorized to delete.' });
+            return;
+        }
+
+        res.status(200).json({ message: 'Recipe deleted successfully', id: deletedRecipe._id });
+    } catch (error: any) {
+        console.error('Error deleting recipe:', error);
+        res.status(500).json({ error: error.message || 'Failed to delete recipe' });
+    }
+};

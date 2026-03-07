@@ -14,7 +14,14 @@ export const analyzeBeans = async (req: Request, res: Response) => {
             });
         }
 
-        const beanInfo = await extractBeanInfo(description, image);
+        const beanInfo: any = await extractBeanInfo(description, image);
+
+        // Merge name into brand so the frontend displays the exact blend alongside the roaster,
+        // since the current frontend UI only displays the `brand` property.
+        if (beanInfo.name && beanInfo.name !== 'Unknown' && beanInfo.name !== 'N/A') {
+            beanInfo.brand = `${beanInfo.brand} - ${beanInfo.name}`;
+        }
+
         res.status(200).json(beanInfo);
     } catch (error: any) {
         console.error("Error analyzing beans:", error);

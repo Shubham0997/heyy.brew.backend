@@ -16,6 +16,7 @@ export interface Recipe {
 }
 
 export interface BeanInfo {
+    name: string;
     brand: string;
     roast: string;
     origin: string;

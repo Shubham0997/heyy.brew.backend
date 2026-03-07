@@ -10,7 +10,8 @@ const getOpenAI = () => {
 };
 
 const BeanInfoSchema = z.object({
-    brand: z.string(),
+    name: z.string().describe("The specific name of the coffee blend or beans (e.g., 'Pink Bloom Coffee', 'Pink Bourbon Coffee', 'Holiday Blend')."),
+    brand: z.string().describe("The brand or roaster name (e.g., 'Caramelly', 'Blue Bottle')."),
     roast: z.string(),
     origin: z.string(),
     processing: z.string(),
@@ -54,7 +55,7 @@ export const extractBeanInfo = async (description?: string, imageBase64?: string
     const completion = await getOpenAI().chat.completions.create({
         model: targetModel, // Cost-effective model for extraction, supports vision!
         messages: [
-            { role: "system", content: "You are a professional coffee expert. Extract the following information from the user's coffee bag description or image. ONLY extract information that is explicitly stated or clearly visible. DO NOT guess or hallucinate missing parameters; instead, return 'Unknown' or 'N/A'. For 'origin', capture the specific farm, region, or estate if printed (e.g., compile 'Baarbara, Chikmagalur' if Farm and Region are listed) rather than just saying 'Single Origin'. Ensure strictly correct JSON." },
+            { role: "system", content: "You are a professional coffee expert. Extract the following information from the user's coffee bag description or image. ONLY extract information that is explicitly stated or clearly visible. DO NOT guess or hallucinate missing parameters; instead, return 'Unknown' or 'N/A'. For 'name', capture the exact specific coffee blend or bean name printed (e.g., 'Pink Bourbon Coffee'). For 'brand', capture the roaster or brand name. For 'origin', capture the specific farm, region, or estate if printed (e.g., compile 'Baarbara, Chikmagalur' if Farm and Region are listed) rather than just saying 'Single Origin'. Ensure strictly correct JSON." },
             { role: "user", content: userContent as any } // Cast to any to satisfy TS for multimodal arrays
         ],
         response_format: zodResponseFormat(BeanInfoSchema, "bean_info"),
@@ -74,6 +75,7 @@ export const generateRecipe = async (beanInfo: BeanInfo, equipment: Equipment, p
     const systemPrompt = `You are a world-class barista. Create a step-by-step custom coffee brewing recipe formatted as JSON.
 The user is brewing using a: ${equipment.name}.
 The coffee beans are:
+- Name/Blend: ${beanInfo.name}
 - Brand: ${beanInfo.brand}
 - Roast: ${beanInfo.roast}
 - Origin: ${beanInfo.origin}
@@ -84,7 +86,9 @@ The coffee beans are:
 - Tasting Notes: ${beanInfo.tasting_notes.join(', ')}
 
 Preferences: ${JSON.stringify(preferences || {})}
-Please design the optimal brew recipe taking all these parameters into account (e.g., lower temp for darker roast, finer grind for lighter roast). Provide steps including pre-wetting/blooming, pouring, and finishing.`;
+Please design the optimal brew recipe taking all these parameters into account (e.g., lower temp for darker roast, finer grind for lighter roast).
+CRITICAL RULE: The \`dose\` (grams of coffee), \`water\` (ml of water), and \`ratio\` (like "1:15") MUST be mathematically consistent. For example, if the dose is 18g and the ratio is "1:15", the total water MUST be exactly 270ml. Pick a standard starting dose (e.g., 15g-18g for pour-over, 18g for espresso) and calculate the water based on the optimal ratio.
+Provide steps including pre-wetting/blooming, pouring, and finishing.`;
 
     const completion = await getOpenAI().chat.completions.create({
         model: "gpt-4o", // High quality reasoning model

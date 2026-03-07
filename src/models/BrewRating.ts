@@ -26,6 +26,7 @@ const NestedRecipeSchema = new Schema({
 }, { _id: false });
 
 const NestedBeanInfoSchema = new Schema({
+    name: { type: String, required: true, default: 'Unknown' },
     brand: { type: String, required: true },
     roast: { type: String, required: true },
     origin: { type: String, required: true },
