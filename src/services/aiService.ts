@@ -108,3 +108,14 @@ Provide steps including pre-wetting/blooming, pouring, and finishing.`;
     const recipe = JSON.parse(rawContent);
     return recipe as Recipe;
 };
+
+export const generateSpeech = async (text: string): Promise<Response> => {
+    const response = await getOpenAI().audio.speech.create({
+        model: "tts-1",
+        voice: "nova",
+        input: text,
+    });
+
+    // We return the raw Response to stream it back to the client
+    return response as unknown as Response;
+};

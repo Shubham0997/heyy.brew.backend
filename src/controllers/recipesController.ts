@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { generateRecipe as generateAiRecipe } from '../services/aiService';
+import { generateRecipe as generateAiRecipe, generateSpeech } from '../services/aiService';
 import BrewRating from '../models/BrewRating';
 import SavedRecipe from '../models/SavedRecipe';
 import { AuthenticatedRequest } from '../middleware/authMiddleware';
@@ -17,6 +17,33 @@ export const generateRecipe = async (req: Request, res: Response) => {
     } catch (error: any) {
         console.error("Error generating recipe:", error);
         res.status(500).json({ error: error.message || 'Failed to generate recipe' });
+    }
+};
+
+export const speakText = async (req: Request, res: Response) => {
+    try {
+        const { text } = req.body;
+
+        if (!text) {
+            return res.status(400).json({ error: 'Text is required for speech synthesis.' });
+        }
+
+        const audioResponse = await generateSpeech(text);
+
+        // Convert the Response body to an array buffer, then to a Node Buffer
+        const arrayBuffer = await audioResponse.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+
+        res.set({
+            'Content-Type': 'audio/mpeg',
+            'Content-Length': buffer.length,
+        });
+
+        res.status(200).send(buffer);
+
+    } catch (error: any) {
+        console.error("Error generating speech:", error);
+        res.status(500).json({ error: error.message || 'Failed to generate speech' });
     }
 };
 
