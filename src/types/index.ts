@@ -11,6 +11,8 @@ export interface Recipe {
     water: number;
     ratio: string;
     grind: string;
+    grind_level?: string;
+    grind_scale?: number;
     temperature: number;
     steps: RecipeStep[];
 }

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { analyzeBeans } from '../controllers/beansController';
 import { generateRecipe, rateRecipe, saveRecipe, getSavedRecipes, deleteRecipe, speakText } from '../controllers/recipesController';
 import { getEquipment } from '../controllers/equipmentController';
+import { getGrinders, addGrinder } from '../controllers/grindersController';
 import { verifyToken } from '../middleware/authMiddleware';
 
 const router = Router();
@@ -11,6 +12,8 @@ router.post('/recipes/generate', generateRecipe);
 router.post('/recipes/speak', speakText);
 router.post('/recipes/rate', rateRecipe);
 router.get('/equipment', getEquipment);
+router.get('/grinders', getGrinders);
+router.post('/grinders', addGrinder as any);
 
 // Protected routes
 router.post('/recipes/save', verifyToken, saveRecipe as any);

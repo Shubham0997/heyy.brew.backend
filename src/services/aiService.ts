@@ -34,6 +34,8 @@ const RecipeSchema = z.object({
     water: z.number(),
     ratio: z.string(),
     grind: z.string(),
+    grind_level: z.string().describe("A string from: extra_coarse, coarse, medium_coarse, medium, medium_fine, fine, extra_fine"),
+    grind_scale: z.number().min(0).max(100).describe("A normalized integer from 0 (finest possible) to 100 (coarsest possible) based on the target micron size for this brew method."),
     temperature: z.number(),
     steps: z.array(RecipeStepSchema),
 });
@@ -72,6 +74,9 @@ export const extractBeanInfo = async (description?: string, imageBase64?: string
 };
 
 export const generateRecipe = async (beanInfo: BeanInfo, equipment: Equipment, preferences?: any): Promise<Recipe> => {
+    const { grinder, ...safePreferences } = preferences || {};
+    const grinderText = grinder ? `\n- Grinder: ${grinder.brand} ${grinder.model}` : '';
+
     const systemPrompt = `You are a world-class barista. Create a step-by-step custom coffee brewing recipe formatted as JSON.
 The user is brewing using a: ${equipment.name}.
 The coffee beans are:
@@ -83,11 +88,25 @@ The coffee beans are:
 - Altitude: ${beanInfo.altitude}
 - Varietal: ${beanInfo.varietal}
 - Roast Date: ${beanInfo.roast_date}
-- Tasting Notes: ${beanInfo.tasting_notes.join(', ')}
+- Tasting Notes: ${beanInfo.tasting_notes.join(', ')}${grinderText}
 
-Preferences: ${JSON.stringify(preferences || {})}
-Please design the optimal brew recipe taking all these parameters into account (e.g., lower temp for darker roast, finer grind for lighter roast).
-CRITICAL RULE: The \`dose\` (grams of coffee), \`water\` (ml of water), and \`ratio\` (like "1:15") MUST be mathematically consistent. For example, if the dose is 18g and the ratio is "1:15", the total water MUST be exactly 270ml. Pick a standard starting dose (e.g., 15g-18g for pour-over, 18g for espresso) and calculate the water based on the optimal ratio.
+Preferences: ${JSON.stringify(safePreferences)}
+
+## Brew Method Micron Targets & Grind Scale
+To establish a normalization baseline, use the following target micron ranges to determine the ideal grind:
+- Turkish Coffee (40-220 μm) -> Grind Scale: 0 - 5
+- Espresso (180-380 μm) -> Grind Scale: 5 - 25
+- AeroPress (320-960 μm) -> Grind Scale: 20 - 70
+- Moka Pot (360-660 μm) -> Grind Scale: 25 - 50
+- V60 / Pour Over (400-930 μm) -> Grind Scale: 30 - 70 (Finer for V60, coarser for flat-bottom/Chemex)
+- French Press (690-1300 μm) -> Grind Scale: 60 - 90
+- Cold Brew (800-1400 μm) -> Grind Scale: 85 - 100
+
+Please design the optimal brew recipe taking all these parameters into account (e.g., lower temp for darker roast, finer grind for lighter roast). 
+Calculate a \`grind_scale\` (0-100) based on the micron targets above for the chosen brew method, and select the appropriate \`grind_level\` string (e.g., "medium_fine").
+CRITICAL RULES:
+1. The \`dose\` (grams of coffee), \`water\` (ml of water), and \`ratio\` (like "1:15") MUST be mathematically consistent. For example, if the dose is 18g and the ratio is "1:15", the total water MUST be exactly 270ml. Pick a standard starting dose (e.g., 15g-18g for pour-over, 18g for espresso) and calculate the water based on the optimal ratio.
+2. When telling the user to grind the coffee in the step instructions, if they are using a specific Grinder, you MUST explicitly tell them to use "setting [GRINDER_SETTING]" EXACTLY like that using the bracketed placeholder. Do NOT guess a number yourself. The backend will mathematically replace this placeholder with the exact physical dial setting based on your \`grind_scale\`.
 Provide steps including pre-wetting/blooming, pouring, and finishing.`;
 
     const completion = await getOpenAI().chat.completions.create({
@@ -106,6 +125,21 @@ Provide steps including pre-wetting/blooming, pouring, and finishing.`;
     }
 
     const recipe = JSON.parse(rawContent);
+
+    // Post-process to inject accurate physical grinder setting
+    if (grinder && recipe.grind_scale !== undefined) {
+        const { min_setting, max_setting } = grinder;
+        const scale = recipe.grind_scale;
+        const exactSetting = Math.round(min_setting + (scale / 100) * (max_setting - min_setting));
+
+        recipe.steps = recipe.steps.map((step: any) => ({
+            ...step,
+            instruction: typeof step.instruction === 'string'
+                ? step.instruction.replace(/\[GRINDER_SETTING\]/g, exactSetting.toString())
+                : step.instruction
+        }));
+    }
+
     return recipe as Recipe;
 };
 
