@@ -61,14 +61,19 @@ export const extractBeanInfo = async (description?: string, imageBase64?: string
 
     if (provider === 'gemini') {
         const isUrl = description && !imageBase64 && (description.startsWith('http://') || description.startsWith('https://'));
-        const targetModel = isUrl ? "gemini-3.1-pro-preview" : "gemini-2.5-flash"; // Use flash for cost-effective standard extraction, 3.1 pro for complex URL/reasoning
+        let targetModel = process.env.GEMINI_MODEL_TEXT || "gemini-3.1-flash-lite-preview";
+        if (imageBase64) {
+            targetModel = process.env.GEMINI_MODEL_IMAGE || "gemini-3-flash-preview";
+        } else if (isUrl) {
+            targetModel = process.env.GEMINI_MODEL_URL || "gemini-3-flash-preview";
+        }
         console.log(`[extractBeanInfo] Executing via Gemini API (Model: ${targetModel})...`);
 
         const genAI = getGemini();
         const { SchemaType } = require('@google/generative-ai'); // Inline to avoid global scope clutter
 
         const model = genAI.getGenerativeModel({
-            model: "gemini-3.1-pro-preview", // Use the confirmed working model
+            model: targetModel,
             systemInstruction: systemPrompt,
             generationConfig: {
                 responseMimeType: "application/json",
@@ -127,7 +132,12 @@ export const extractBeanInfo = async (description?: string, imageBase64?: string
             : (description || "No description provided");
 
         const isUrl = description && !imageBase64 && (description.startsWith('http://') || description.startsWith('https://'));
-        const targetModel = isUrl ? "gpt-5-search-api" : "gpt-4o-mini";
+        let targetModel = process.env.OPENAI_MODEL_TEXT || "gpt-5-nano";
+        if (imageBase64) {
+            targetModel = process.env.OPENAI_MODEL_IMAGE || "gpt-4o";
+        } else if (isUrl) {
+            targetModel = process.env.OPENAI_MODEL_URL || "gpt-5-mini";
+        }
         console.log(`[extractBeanInfo] Executing via OpenAI API (Model: ${targetModel})...`);
 
         const completion = await getOpenAI().chat.completions.create({
@@ -257,12 +267,13 @@ Also generate a \`description\` field: a brief 1-2 sentence explanation of why t
     let rawContent: string | null = null;
 
     if (provider === 'gemini') {
-        console.log(`[generateRecipe] Executing via Gemini API (Model: gemini-3.1-pro-preview)...`);
+        const targetModel = process.env.GEMINI_MODEL_RECIPE || "gemini-3.1-pro-preview";
+        console.log(`[generateRecipe] Executing via Gemini API (Model: ${targetModel})...`);
         const genAI = getGemini();
         const { SchemaType } = require('@google/generative-ai');
 
         const model = genAI.getGenerativeModel({
-            model: "gemini-3.1-pro-preview", // Use the confirmed working model
+            model: targetModel,
             generationConfig: {
                 responseMimeType: "application/json",
                 responseSchema: {
@@ -299,9 +310,10 @@ Also generate a \`description\` field: a brief 1-2 sentence explanation of why t
         const result = await model.generateContent(systemPrompt);
         rawContent = result.response.text();
     } else {
-        console.log(`[generateRecipe] Executing via OpenAI API (Model: gpt-4o)...`);
+        const targetModel = process.env.OPENAI_MODEL_RECIPE || "gpt-5.4";
+        console.log(`[generateRecipe] Executing via OpenAI API (Model: ${targetModel})...`);
         const completion = await getOpenAI().chat.completions.create({
-            model: "gpt-4o", // High quality reasoning model
+            model: targetModel, // High quality reasoning model
             messages: [
                 { role: "system", content: systemPrompt },
                 { role: "user", content: "Please generate the recipe JSON." }
@@ -338,8 +350,9 @@ Also generate a \`description\` field: a brief 1-2 sentence explanation of why t
 };
 
 export const generateSpeech = async (text: string): Promise<Response> => {
+    const targetModel = process.env.OPENAI_MODEL_TTS || "tts-1";
     const response = await getOpenAI().audio.speech.create({
-        model: "tts-1",
+        model: targetModel,
         voice: "nova",
         input: text,
     });
