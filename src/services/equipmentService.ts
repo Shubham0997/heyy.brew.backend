@@ -25,6 +25,18 @@ export const getEquipmentList = (): Equipment[] => {
             name: 'French Press',
             descriptor: 'Classic immersion brewing for heavy-bodied, robust coffee with more oils.',
             icon: 'french-press'
+        },
+        {
+            id: 'espresso-machine',
+            name: 'Espresso Machine',
+            descriptor: 'High-pressure extraction for concentrated, intense shots — the base for lattes, cappuccinos, and americanos.',
+            icon: 'espresso-machine'
+        },
+        {
+            id: 'moka-pot',
+            name: 'Moka Pot',
+            descriptor: 'Stovetop brewing that produces strong, espresso-style coffee — great for Vietnamese coffee and milk drinks.',
+            icon: 'moka-pot'
         }
     ];
 };

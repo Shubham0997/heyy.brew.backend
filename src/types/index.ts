@@ -35,3 +35,5 @@ export interface Equipment {
     descriptor: string;
     icon: string;
 }
+
+type DrinkType = 'black' | 'espresso' | 'americano' | 'latte' | 'cappuccino' | 'vietnamese';

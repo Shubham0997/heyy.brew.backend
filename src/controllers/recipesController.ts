@@ -154,3 +154,58 @@ export const deleteRecipe = async (req: AuthenticatedRequest, res: Response) => 
         res.status(500).json({ error: error.message || 'Failed to delete recipe' });
     }
 };
+
+export const updateSavedRecipeRating = async (req: AuthenticatedRequest, res: Response) => {
+    try {
+        const userId = req.user?.uid;
+        const recipeId = req.params.id;
+        const { rating, tastedNotes } = req.body;
+
+        if (!userId) {
+            res.status(401).json({ error: 'Unauthorized user.' });
+            return;
+        }
+
+        if (!recipeId) {
+            res.status(400).json({ error: 'Recipe ID is required.' });
+            return;
+        }
+
+        const updateData: any = {};
+
+        if (rating !== undefined && rating !== null) {
+            const numericRating = Number(rating);
+            if (isNaN(numericRating) || numericRating < 1 || numericRating > 10 || !Number.isInteger(numericRating)) {
+                res.status(400).json({ error: 'Rating must be an integer between 1 and 10.' });
+                return;
+            }
+            updateData.rating = numericRating;
+        }
+
+        if (Array.isArray(tastedNotes)) {
+            updateData.tastedNotes = tastedNotes;
+        }
+
+        if (Object.keys(updateData).length === 0) {
+            res.status(400).json({ error: 'At least rating or tastedNotes is required.' });
+            return;
+        }
+
+        const updatedRecipe = await SavedRecipe.findOneAndUpdate(
+            { _id: recipeId, userId },
+            updateData,
+            { returnDocument: 'after' }
+        );
+
+        if (!updatedRecipe) {
+            res.status(404).json({ error: 'Recipe not found or unauthorized.' });
+            return;
+        }
+
+        res.status(200).json({ message: 'Rating updated successfully', rating: updatedRecipe.rating, tastedNotes: updatedRecipe.tastedNotes });
+    } catch (error: any) {
+        console.error('Error updating recipe rating:', error);
+        res.status(500).json({ error: error.message || 'Failed to update recipe rating' });
+    }
+};
+
