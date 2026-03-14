@@ -47,20 +47,6 @@ const SavedRecipeSchema: Schema = new Schema({
     createdAt: { type: Date, required: true, default: Date.now }
 });
 
-// Trigger taste analysis when a recipe is saved with a rating
-SavedRecipeSchema.post('save', function(doc) {
-    if (doc?.rating && doc?.userId) {
-        const { triggerAnalysisIfReady } = require('../services/tasteAnalysisService');
-        triggerAnalysisIfReady(doc.userId).catch(() => {}); // fire-and-forget
-    }
-});
 
-// Trigger taste analysis when a rating is updated via findOneAndUpdate
-SavedRecipeSchema.post('findOneAndUpdate', async function(doc) {
-    if (doc?.rating && doc?.userId) {
-        const { triggerAnalysisIfReady } = require('../services/tasteAnalysisService');
-        triggerAnalysisIfReady(doc.userId).catch(() => {}); // fire-and-forget
-    }
-});
 
 export default mongoose.model<ISavedRecipe>('SavedRecipe', SavedRecipeSchema);
